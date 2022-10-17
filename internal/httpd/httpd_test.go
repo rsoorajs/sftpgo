@@ -232,14 +232,15 @@ qwlk5iw/jQekxThg==
 )
 
 var (
-	configDir       = filepath.Join(".", "..", "..")
-	defaultPerms    = []string{dataprovider.PermAny}
-	homeBasePath    string
-	backupsPath     string
-	testServer      *httptest.Server
-	postConnectPath string
-	preActionPath   string
-	lastResetCode   string
+	configDir         = filepath.Join(".", "..", "..")
+	defaultPerms      = []string{dataprovider.PermAny}
+	homeBasePath      string
+	backupsPath       string
+	testServer        *httptest.Server
+	postConnectPath   string
+	preActionPath     string
+	lastResetCode     string
+	additionalEnvVars map[string]string
 )
 
 type fakeConnection struct {
@@ -290,10 +291,22 @@ type recoveryCode struct {
 	Used bool   `json:"used"`
 }
 
-func TestMain(m *testing.M) {
-	homeBasePath = os.TempDir()
-	logfilePath := filepath.Join(configDir, "sftpgo_api_test.log")
-	logger.InitLogger(logfilePath, 5, 1, 28, false, false, zerolog.DebugLevel)
+func getAdditionalEnvVars() {
+	additionalEnvVars = map[string]string{}
+	values := []string{"SFTPGO_DATA_PROVIDER__DRIVER", "SFTPGO_DATA_PROVIDER__NAME",
+		"SFTPGO_DATA_PROVIDER__HOST", "SFTPGO_DATA_PROVIDER__PORT", "SFTPGO_DATA_PROVIDER__USERNAME",
+		"SFTPGO_DATA_PROVIDER__PASSWORD"}
+	for _, v := range values {
+		if val, ok := os.LookupEnv(v); ok {
+			additionalEnvVars[v] = val
+		}
+	}
+	for k, v := range additionalEnvVars {
+		os.Setenv(k, v)
+	}
+}
+
+func setEnvVars() {
 	os.Setenv("SFTPGO_COMMON__UPLOAD_MODE", "2")
 	os.Setenv("SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "1")
 	os.Setenv("SFTPGO_COMMON__ALLOW_SELF_CONNECTIONS", "1")
@@ -302,6 +315,14 @@ func TestMain(m *testing.M) {
 	os.Setenv("SFTPGO_DEFAULT_ADMIN_PASSWORD", "password")
 	os.Setenv("SFTPGO_HTTPD__BINDINGS__0__WEB_CLIENT_INTEGRATIONS__0__URL", "http://127.0.0.1/test.html")
 	os.Setenv("SFTPGO_HTTPD__BINDINGS__0__WEB_CLIENT_INTEGRATIONS__0__FILE_EXTENSIONS", ".pdf,.txt")
+}
+
+func TestMain(m *testing.M) {
+	homeBasePath = os.TempDir()
+	logfilePath := filepath.Join(configDir, "sftpgo_api_test.log")
+	logger.InitLogger(logfilePath, 5, 1, 28, false, false, zerolog.DebugLevel)
+	getAdditionalEnvVars()
+	setEnvVars()
 	err := config.LoadConfig(configDir, "")
 	if err != nil {
 		logger.WarnToConsole("error loading configuration: %v", err)
@@ -458,6 +479,7 @@ func TestMain(m *testing.M) {
 
 func TestInitialization(t *testing.T) {
 	isShared := 0
+	setEnvVars()
 	err := config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	invalidFile := "invalid file"
@@ -2890,6 +2912,7 @@ func TestPasswordValidations(t *testing.T) {
 	}
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	providerConf := config.GetProviderConf()
 	assert.NoError(t, err)
@@ -2912,6 +2935,7 @@ func TestPasswordValidations(t *testing.T) {
 
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -2926,6 +2950,7 @@ func TestAdminPasswordHashing(t *testing.T) {
 	}
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	providerConf := config.GetProviderConf()
 	assert.NoError(t, err)
@@ -2963,6 +2988,7 @@ func TestAdminPasswordHashing(t *testing.T) {
 
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -5428,6 +5454,7 @@ func TestCloseConnectionAfterUserUpdateDelete(t *testing.T) {
 func TestAdminGenerateRecoveryCodesSaveError(t *testing.T) {
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -5461,6 +5488,7 @@ func TestAdminGenerateRecoveryCodesSaveError(t *testing.T) {
 
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -5491,6 +5519,7 @@ func TestNamingRules(t *testing.T) {
 	require.NoError(t, err)
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -5559,6 +5588,7 @@ func TestNamingRules(t *testing.T) {
 
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -5706,6 +5736,7 @@ func TestNamingRules(t *testing.T) {
 func TestSaveErrors(t *testing.T) {
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -5767,6 +5798,7 @@ func TestSaveErrors(t *testing.T) {
 
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -5839,6 +5871,7 @@ func TestSaveErrors(t *testing.T) {
 func TestUserBaseDir(t *testing.T) {
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -5856,6 +5889,7 @@ func TestUserBaseDir(t *testing.T) {
 	assert.NoError(t, err)
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -5867,6 +5901,7 @@ func TestUserBaseDir(t *testing.T) {
 func TestQuotaTrackingDisabled(t *testing.T) {
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -5900,6 +5935,7 @@ func TestQuotaTrackingDisabled(t *testing.T) {
 
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -6187,6 +6223,7 @@ func TestProviderErrors(t *testing.T) {
 	setJWTCookieForReq(req, testServerToken)
 	rr = executeRequest(req)
 	checkResponseCode(t, http.StatusInternalServerError, rr)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -6298,6 +6335,7 @@ func TestFolders(t *testing.T) {
 func TestDumpdata(t *testing.T) {
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -6345,6 +6383,7 @@ func TestDumpdata(t *testing.T) {
 	}
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -6464,6 +6503,7 @@ func TestDefenderAPIErrors(t *testing.T) {
 		rr := executeRequest(req)
 		checkResponseCode(t, http.StatusInternalServerError, rr)
 
+		setEnvVars()
 		err = config.LoadConfig(configDir, "")
 		assert.NoError(t, err)
 		providerConf := config.GetProviderConf()
@@ -14999,6 +15039,7 @@ func TestWebAdminSetupMock(t *testing.T) {
 		assert.NoError(t, err)
 	}
 	// close the provider and initializes it without creating the default admin
+	setEnvVars()
 	os.Setenv("SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "0")
 	err = dataprovider.Close()
 	assert.NoError(t, err)
@@ -15111,7 +15152,6 @@ func TestWebAdminSetupMock(t *testing.T) {
 	rr = executeRequest(req)
 	checkResponseCode(t, http.StatusBadRequest, rr)
 	assert.Contains(t, rr.Body.String(), "an admin user already exists")
-	os.Setenv("SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "1")
 }
 
 func TestWhitelist(t *testing.T) {
@@ -17839,6 +17879,7 @@ func TestUserSaveFromTemplateMock(t *testing.T) {
 	checkResponseCode(t, http.StatusInternalServerError, rr)
 	assert.Contains(t, rr.Body.String(), "Cannot save the defined users")
 
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -18148,6 +18189,7 @@ func TestFolderSaveFromTemplateMock(t *testing.T) {
 	checkResponseCode(t, http.StatusInternalServerError, rr)
 	assert.Contains(t, rr.Body.String(), "Cannot save the defined folders")
 
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -21193,6 +21235,7 @@ func TestProviderClosedMock(t *testing.T) {
 	rr = executeRequest(req)
 	checkResponseCode(t, http.StatusInternalServerError, rr)
 
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()

@@ -248,29 +248,50 @@ XMf5HU3ThYqYn3bYypZZ8nQ7BXVh4LqGNqG29wR4v6l+dLO6odXnLzfApGD9e+d4
 )
 
 var (
-	configDir       = filepath.Join(".", "..", "..")
-	allPerms        = []string{dataprovider.PermAny}
-	homeBasePath    string
-	hookCmdPath     string
-	extAuthPath     string
-	preLoginPath    string
-	postConnectPath string
-	preDownloadPath string
-	preUploadPath   string
-	logFilePath     string
-	certPath        string
-	keyPath         string
-	caCrtPath       string
-	caCRLPath       string
+	configDir         = filepath.Join(".", "..", "..")
+	allPerms          = []string{dataprovider.PermAny}
+	homeBasePath      string
+	hookCmdPath       string
+	extAuthPath       string
+	preLoginPath      string
+	postConnectPath   string
+	preDownloadPath   string
+	preUploadPath     string
+	logFilePath       string
+	certPath          string
+	keyPath           string
+	caCrtPath         string
+	caCRLPath         string
+	additionalEnvVars map[string]string
 )
 
-func TestMain(m *testing.M) {
-	logFilePath = filepath.Join(configDir, "sftpgo_webdavd_test.log")
-	logger.InitLogger(logFilePath, 5, 1, 28, false, false, zerolog.DebugLevel)
+func getAdditionalEnvVars() {
+	additionalEnvVars = map[string]string{}
+	values := []string{"SFTPGO_DATA_PROVIDER__DRIVER", "SFTPGO_DATA_PROVIDER__NAME",
+		"SFTPGO_DATA_PROVIDER__HOST", "SFTPGO_DATA_PROVIDER__PORT", "SFTPGO_DATA_PROVIDER__USERNAME",
+		"SFTPGO_DATA_PROVIDER__PASSWORD"}
+	for _, v := range values {
+		if val, ok := os.LookupEnv(v); ok {
+			additionalEnvVars[v] = val
+		}
+	}
+}
+
+func setEnvVars() {
 	os.Setenv("SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "1")
 	os.Setenv("SFTPGO_COMMON__ALLOW_SELF_CONNECTIONS", "1")
 	os.Setenv("SFTPGO_DEFAULT_ADMIN_USERNAME", "admin")
 	os.Setenv("SFTPGO_DEFAULT_ADMIN_PASSWORD", "password")
+	for k, v := range additionalEnvVars {
+		os.Setenv(k, v)
+	}
+}
+
+func TestMain(m *testing.M) {
+	logFilePath = filepath.Join(configDir, "sftpgo_webdavd_test.log")
+	logger.InitLogger(logFilePath, 5, 1, 28, false, false, zerolog.DebugLevel)
+	getAdditionalEnvVars()
+	setEnvVars()
 	err := config.LoadConfig(configDir, "")
 	if err != nil {
 		logger.ErrorToConsole("error loading configuration: %v", err)
@@ -1030,6 +1051,7 @@ func TestLoginExternalAuth(t *testing.T) {
 	u := getTestUser()
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -1053,6 +1075,7 @@ func TestLoginExternalAuth(t *testing.T) {
 	assert.NoError(t, err)
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -1072,6 +1095,7 @@ func TestExternalAuthReturningAnonymousUser(t *testing.T) {
 	u.Password = ""
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -1127,6 +1151,7 @@ func TestExternalAuthReturningAnonymousUser(t *testing.T) {
 	assert.NoError(t, err)
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -1164,6 +1189,7 @@ func TestExternalAuthAnonymousGroupInheritance(t *testing.T) {
 	}
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -1198,6 +1224,7 @@ func TestExternalAuthAnonymousGroupInheritance(t *testing.T) {
 	assert.NoError(t, err)
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -1214,6 +1241,7 @@ func TestPreLoginHook(t *testing.T) {
 	u := getTestUser()
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -1258,6 +1286,7 @@ func TestPreLoginHook(t *testing.T) {
 	assert.NoError(t, err)
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -2640,6 +2669,7 @@ func TestExternatAuthWithClientCert(t *testing.T) {
 	u.Filters.DeniedLoginMethods = []string{dataprovider.LoginMethodTLSCertificate, dataprovider.LoginMethodPassword}
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -2680,6 +2710,7 @@ func TestExternatAuthWithClientCert(t *testing.T) {
 	assert.NoError(t, err)
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -2699,6 +2730,7 @@ func TestPreLoginHookWithClientCert(t *testing.T) {
 	u.Filters.DeniedLoginMethods = []string{dataprovider.LoginMethodTLSCertificate, dataprovider.LoginMethodPassword}
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -2749,6 +2781,7 @@ func TestPreLoginHookWithClientCert(t *testing.T) {
 	assert.NoError(t, err)
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()

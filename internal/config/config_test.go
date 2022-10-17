@@ -110,9 +110,7 @@ func TestReadEnvFiles(t *testing.T) {
 	assert.Equal(t, 10, config.GetSFTPDConfig().MaxAuthTries)
 
 	_, ok := os.LookupEnv("SFTPGO_SFTPD__MAX_AUTH_TRIES")
-	assert.True(t, ok)
-	err = os.Unsetenv("SFTPGO_SFTPD__MAX_AUTH_TRIES")
-	assert.NoError(t, err)
+	assert.False(t, ok, "SFTPGO_SFTPD__MAX_AUTH_TRIES should be automatically removed after loading the config")
 	os.RemoveAll(envd)
 }
 
@@ -409,9 +407,6 @@ func TestSSHCommandsFromEnv(t *testing.T) {
 	reset()
 
 	os.Setenv("SFTPGO_SFTPD__ENABLED_SSH_COMMANDS", "cd,scp")
-	t.Cleanup(func() {
-		os.Unsetenv("SFTPGO_SFTPD__ENABLED_SSH_COMMANDS")
-	})
 
 	err := config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
@@ -428,10 +423,6 @@ func TestSMTPFromEnv(t *testing.T) {
 
 	os.Setenv("SFTPGO_SMTP__HOST", "smtp.example.com")
 	os.Setenv("SFTPGO_SMTP__PORT", "587")
-	t.Cleanup(func() {
-		os.Unsetenv("SFTPGO_SMTP__HOST")
-		os.Unsetenv("SFTPGO_SMTP__PORT")
-	})
 
 	err := config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
@@ -447,12 +438,6 @@ func TestMFAFromEnv(t *testing.T) {
 	os.Setenv("SFTPGO_MFA__TOTP__1__NAME", "additional_name")
 	os.Setenv("SFTPGO_MFA__TOTP__1__ISSUER", "additional_issuer")
 	os.Setenv("SFTPGO_MFA__TOTP__1__ALGO", "sha256")
-	t.Cleanup(func() {
-		os.Unsetenv("SFTPGO_MFA__TOTP__0__NAME")
-		os.Unsetenv("SFTPGO_MFA__TOTP__1__NAME")
-		os.Unsetenv("SFTPGO_MFA__TOTP__1__ISSUER")
-		os.Unsetenv("SFTPGO_MFA__TOTP__1__ALGO")
-	})
 
 	err := config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
@@ -575,13 +560,6 @@ func TestFTPDOverridesFromEnv(t *testing.T) {
 	os.Setenv("SFTPGO_FTPD__BINDINGS__0__PASSIVE_IP_OVERRIDES__0__NETWORKS", "192.168.1.0/24, 192.168.3.0/25")
 	os.Setenv("SFTPGO_FTPD__BINDINGS__0__PASSIVE_IP_OVERRIDES__1__IP", "192.168.2.1")
 	os.Setenv("SFTPGO_FTPD__BINDINGS__0__PASSIVE_IP_OVERRIDES__1__NETWORKS", "192.168.2.0/24")
-	cleanup := func() {
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__0__PASSIVE_IP_OVERRIDES__0__IP")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__0__PASSIVE_IP_OVERRIDES__0__NETWORKS")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__0__PASSIVE_IP_OVERRIDES__1__IP")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__0__PASSIVE_IP_OVERRIDES__1__NETWORKS")
-	}
-	t.Cleanup(cleanup)
 
 	err := config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
@@ -593,7 +571,6 @@ func TestFTPDOverridesFromEnv(t *testing.T) {
 	require.Equal(t, "192.168.2.1", ftpdConf.Bindings[0].PassiveIPOverrides[1].IP)
 	require.Len(t, ftpdConf.Bindings[0].PassiveIPOverrides[1].Networks, 1)
 
-	cleanup()
 	cfg := make(map[string]any)
 	cfg["ftpd"] = ftpdConf
 	configAsJSON, err := json.Marshal(cfg)
@@ -630,18 +607,6 @@ func TestHTTPDSubObjectsFromEnv(t *testing.T) {
 	os.Setenv("SFTPGO_HTTPD__BINDINGS__0__OIDC__CONFIG_URL", "config_url")
 	os.Setenv("SFTPGO_HTTPD__BINDINGS__0__OIDC__REDIRECT_BASE_URL", "redirect_base_url")
 	os.Setenv("SFTPGO_HTTPD__BINDINGS__0__OIDC__USERNAME_FIELD", "email")
-	cleanup := func() {
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__0__SECURITY__HTTPS_PROXY_HEADERS__0__KEY")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__0__SECURITY__HTTPS_PROXY_HEADERS__0__VALUE")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__0__WEB_CLIENT_INTEGRATIONS__0__URL")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__0__WEB_CLIENT_INTEGRATIONS__0__FILE_EXTENSIONS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__0__OIDC__CLIENT_ID")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__0__OIDC__CLIENT_SECRET")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__0__OIDC__CONFIG_URL")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__0__OIDC__REDIRECT_BASE_URL")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__0__OIDC__USERNAME_FIELD")
-	}
-	t.Cleanup(cleanup)
 
 	err := config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
@@ -655,7 +620,6 @@ func TestHTTPDSubObjectsFromEnv(t *testing.T) {
 	require.Equal(t, "redirect_base_url", httpdConf.Bindings[0].OIDC.RedirectBaseURL)
 	require.Equal(t, "email", httpdConf.Bindings[0].OIDC.UsernameField)
 
-	cleanup()
 	cfg := make(map[string]any)
 	cfg["httpd"] = httpdConf
 	configAsJSON, err := json.Marshal(cfg)
@@ -702,21 +666,6 @@ func TestPluginsFromEnv(t *testing.T) {
 	os.Setenv("SFTPGO_PLUGINS__0__KMS_OPTIONS__SCHEME", kms.SchemeAWS)
 	os.Setenv("SFTPGO_PLUGINS__0__KMS_OPTIONS__ENCRYPTED_STATUS", kms.SecretStatusAWS)
 	os.Setenv("SFTPGO_PLUGINS__0__AUTH_OPTIONS__SCOPE", "14")
-	t.Cleanup(func() {
-		os.Unsetenv("SFTPGO_PLUGINS__0__TYPE")
-		os.Unsetenv("SFTPGO_PLUGINS__0__NOTIFIER_OPTIONS__FS_EVENTS")
-		os.Unsetenv("SFTPGO_PLUGINS__0__NOTIFIER_OPTIONS__PROVIDER_EVENTS")
-		os.Unsetenv("SFTPGO_PLUGINS__0__NOTIFIER_OPTIONS__PROVIDER_OBJECTS")
-		os.Unsetenv("SFTPGO_PLUGINS__0__NOTIFIER_OPTIONS__RETRY_MAX_TIME")
-		os.Unsetenv("SFTPGO_PLUGINS__0__NOTIFIER_OPTIONS__RETRY_QUEUE_MAX_SIZE")
-		os.Unsetenv("SFTPGO_PLUGINS__0__CMD")
-		os.Unsetenv("SFTPGO_PLUGINS__0__ARGS")
-		os.Unsetenv("SFTPGO_PLUGINS__0__SHA256SUM")
-		os.Unsetenv("SFTPGO_PLUGINS__0__AUTO_MTLS")
-		os.Unsetenv("SFTPGO_PLUGINS__0__KMS_OPTIONS__SCHEME")
-		os.Unsetenv("SFTPGO_PLUGINS__0__KMS_OPTIONS__ENCRYPTED_STATUS")
-		os.Unsetenv("SFTPGO_PLUGINS__0__AUTH_OPTIONS__SCOPE")
-	})
 
 	err := config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
@@ -802,19 +751,6 @@ func TestRateLimitersFromEnv(t *testing.T) {
 	os.Setenv("SFTPGO_COMMON__RATE_LIMITERS__0__ALLOW_LIST", ", 172.16.2.4, ")
 	os.Setenv("SFTPGO_COMMON__RATE_LIMITERS__8__AVERAGE", "50")
 	os.Setenv("SFTPGO_COMMON__RATE_LIMITERS__8__ALLOW_LIST", "192.168.1.1, 192.168.2.0/24")
-	t.Cleanup(func() {
-		os.Unsetenv("SFTPGO_COMMON__RATE_LIMITERS__0__AVERAGE")
-		os.Unsetenv("SFTPGO_COMMON__RATE_LIMITERS__0__PERIOD")
-		os.Unsetenv("SFTPGO_COMMON__RATE_LIMITERS__0__BURST")
-		os.Unsetenv("SFTPGO_COMMON__RATE_LIMITERS__0__TYPE")
-		os.Unsetenv("SFTPGO_COMMON__RATE_LIMITERS__0__PROTOCOLS")
-		os.Unsetenv("SFTPGO_COMMON__RATE_LIMITERS__0__GENERATE_DEFENDER_EVENTS")
-		os.Unsetenv("SFTPGO_COMMON__RATE_LIMITERS__0__ENTRIES_SOFT_LIMIT")
-		os.Unsetenv("SFTPGO_COMMON__RATE_LIMITERS__0__ENTRIES_HARD_LIMIT")
-		os.Unsetenv("SFTPGO_COMMON__RATE_LIMITERS__0__ALLOW_LIST")
-		os.Unsetenv("SFTPGO_COMMON__RATE_LIMITERS__8__AVERAGE")
-		os.Unsetenv("SFTPGO_COMMON__RATE_LIMITERS__8__ALLOW_LIST")
-	})
 
 	err := config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
@@ -860,13 +796,6 @@ func TestSFTPDBindingsFromEnv(t *testing.T) {
 	os.Setenv("SFTPGO_SFTPD__BINDINGS__0__APPLY_PROXY_CONFIG", "false")
 	os.Setenv("SFTPGO_SFTPD__BINDINGS__3__ADDRESS", "127.0.1.1")
 	os.Setenv("SFTPGO_SFTPD__BINDINGS__3__PORT", "2203")
-	t.Cleanup(func() {
-		os.Unsetenv("SFTPGO_SFTPD__BINDINGS__0__ADDRESS")
-		os.Unsetenv("SFTPGO_SFTPD__BINDINGS__0__PORT")
-		os.Unsetenv("SFTPGO_SFTPD__BINDINGS__0__APPLY_PROXY_CONFIG")
-		os.Unsetenv("SFTPGO_SFTPD__BINDINGS__3__ADDRESS")
-		os.Unsetenv("SFTPGO_SFTPD__BINDINGS__3__PORT")
-	})
 
 	err := config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
@@ -917,14 +846,6 @@ func TestCommandsFromEnv(t *testing.T) {
 	os.Setenv("SFTPGO_COMMAND__COMMANDS__1__TIMEOUT", "20")
 	os.Setenv("SFTPGO_COMMAND__COMMANDS__1__ENV", "e=f")
 
-	t.Cleanup(func() {
-		os.Unsetenv("SFTPGO_COMMAND__TIMEOUT")
-		os.Unsetenv("SFTPGO_COMMAND__ENV")
-		os.Unsetenv("SFTPGO_COMMAND__COMMANDS__0__PATH")
-		os.Unsetenv("SFTPGO_COMMAND__COMMANDS__0__TIMEOUT")
-		os.Unsetenv("SFTPGO_COMMAND__COMMANDS__0__ENV")
-	})
-
 	err = config.LoadConfig(configDir, confName)
 	assert.NoError(t, err)
 	commandConfig = config.GetCommandConfig()
@@ -965,29 +886,6 @@ func TestFTPDBindingsFromEnv(t *testing.T) {
 	os.Setenv("SFTPGO_FTPD__BINDINGS__9__ACTIVE_CONNECTIONS_SECURITY", "1")
 	os.Setenv("SFTPGO_FTPD__BINDINGS__9__CERTIFICATE_FILE", "cert.crt")
 	os.Setenv("SFTPGO_FTPD__BINDINGS__9__CERTIFICATE_KEY_FILE", "cert.key")
-
-	t.Cleanup(func() {
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__0__ADDRESS")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__0__PORT")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__0__APPLY_PROXY_CONFIG")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__0__TLS_MODE")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__0__FORCE_PASSIVE_IP")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__0__PASSIVE_IP_OVERRIDES__0__IP")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__0__TLS_CIPHER_SUITES")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__0__ACTIVE_CONNECTIONS_SECURITY")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__9__ADDRESS")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__9__PORT")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__9__TLS_MODE")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__9__MIN_TLS_VERSION")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__9__FORCE_PASSIVE_IP")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__9__PASSIVE_IP_OVERRIDES__3__IP")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__9__PASSIVE_IP_OVERRIDES__3__NETWORKS")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__9__CLIENT_AUTH_TYPE")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__9__DEBUG")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__9__ACTIVE_CONNECTIONS_SECURITY")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__9__CERTIFICATE_FILE")
-		os.Unsetenv("SFTPGO_FTPD__BINDINGS__9__CERTIFICATE_KEY_FILE")
-	})
 
 	err := config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
@@ -1046,25 +944,6 @@ func TestWebDAVBindingsFromEnv(t *testing.T) {
 	os.Setenv("SFTPGO_WEBDAVD__BINDINGS__2__CERTIFICATE_FILE", "webdav.crt")
 	os.Setenv("SFTPGO_WEBDAVD__BINDINGS__2__CERTIFICATE_KEY_FILE", "webdav.key")
 	os.Setenv("SFTPGO_WEBDAVD__BINDINGS__2__DISABLE_WWW_AUTH_HEADER", "1")
-
-	t.Cleanup(func() {
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__1__ADDRESS")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__1__PORT")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__1__ENABLE_HTTPS")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__1__TLS_CIPHER_SUITES")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__1__PROXY_ALLOWED")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__1__CLIENT_IP_PROXY_HEADER")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__1__CLIENT_IP_HEADER_DEPTH")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__2__ADDRESS")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__2__PORT")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__2__ENABLE_HTTPS")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__2__MIN_TLS_VERSION")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__2__CLIENT_AUTH_TYPE")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__2__PREFIX")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__2__CERTIFICATE_FILE")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__2__CERTIFICATE_KEY_FILE")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__2__DISABLE_WWW_AUTH_HEADER")
-	})
 
 	err := config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
@@ -1173,75 +1052,6 @@ func TestHTTPDBindingsFromEnv(t *testing.T) {
 	os.Setenv("SFTPGO_HTTPD__BINDINGS__2__BRANDING__WEB_CLIENT__EXTRA_CSS", "1.css,2.css")
 	os.Setenv("SFTPGO_HTTPD__BINDINGS__2__CERTIFICATE_FILE", "httpd.crt")
 	os.Setenv("SFTPGO_HTTPD__BINDINGS__2__CERTIFICATE_KEY_FILE", "httpd.key")
-
-	t.Cleanup(func() {
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__0__ADDRESS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__0__PORT")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__0__TLS_CIPHER_SUITES")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__1__ADDRESS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__1__PORT")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__1__ENABLE_HTTPS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__1__HIDE_LOGIN_URL")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__1__BRANDING__WEB_ADMIN__NAME")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__1__BRANDING__WEB_CLIENT__SHORT_NAME")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__1__EXTRA_CSS__0__PATH")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__ADDRESS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__PORT")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__ENABLE_HTTPS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__MIN_TLS_VERSION")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__ENABLE_WEB_ADMIN")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__ENABLE_WEB_CLIENT")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__ENABLE_REST_API")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__ENABLED_LOGIN_METHODS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__RENDER_OPENAPI")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__CLIENT_AUTH_TYPE")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__TLS_CIPHER_SUITES")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__PROXY_ALLOWED")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__CLIENT_IP_PROXY_HEADER")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__CLIENT_IP_HEADER_DEPTH")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__HIDE_LOGIN_URL")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__WEB_CLIENT_INTEGRATIONS__1__URL")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__WEB_CLIENT_INTEGRATIONS__1__FILE_EXTENSIONS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__WEB_CLIENT_INTEGRATIONS__2__URL")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__WEB_CLIENT_INTEGRATIONS__3__FILE_EXTENSIONS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__OIDC__CLIENT_ID")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__OIDC__CLIENT_SECRET")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__OIDC__CONFIG_URL")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__OIDC__REDIRECT_BASE_URL")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__OIDC__USERNAME_FIELD")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__OIDC__ROLE_FIELD")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__OIDC__SCOPES")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__OIDC__IMPLICIT_ROLES")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__OIDC__CUSTOM_FIELDS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__OIDC__DEBUG")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__ENABLED")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__ALLOWED_HOSTS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__ALLOWED_HOSTS_ARE_REGEX")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__HOSTS_PROXY_HEADERS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__HTTPS_REDIRECT")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__HTTPS_HOST")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__HTTPS_PROXY_HEADERS__1__KEY")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__HTTPS_PROXY_HEADERS__1__VALUE")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__STS_SECONDS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__STS_INCLUDE_SUBDOMAINS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__STS_PRELOAD")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__CONTENT_TYPE_NOSNIFF")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__CONTENT_SECURITY_POLICY")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__PERMISSIONS_POLICY")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__CROSS_ORIGIN_OPENER_POLICY")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__SECURITY__EXPECT_CT_HEADER")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__EXTRA_CSS__0__PATH")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__EXTRA_CSS__1__PATH")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__BRANDING__WEB_ADMIN__FAVICON_PATH")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__BRANDING__WEB_CLIENT__LOGO_PATH")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__BRANDING__WEB_ADMIN__LOGIN_IMAGE_PATH")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__BRANDING__WEB_CLIENT__DISCLAIMER_NAME")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__BRANDING__WEB_ADMIN__DISCLAIMER_PATH")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__BRANDING__WEB_CLIENT__DEFAULT_CSS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__BRANDING__WEB_CLIENT__EXTRA_CSS")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__CERTIFICATE_FILE")
-		os.Unsetenv("SFTPGO_HTTPD__BINDINGS__2__CERTIFICATE_KEY_FILE")
-	})
 
 	err := config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
@@ -1380,14 +1190,6 @@ func TestHTTPClientCertificatesFromEnv(t *testing.T) {
 	os.Setenv("SFTPGO_HTTP__CERTIFICATES__9__CERT", "cert9")
 	os.Setenv("SFTPGO_HTTP__CERTIFICATES__9__KEY", "key9")
 
-	t.Cleanup(func() {
-		os.Unsetenv("SFTPGO_HTTP__CERTIFICATES__0__CERT")
-		os.Unsetenv("SFTPGO_HTTP__CERTIFICATES__0__KEY")
-		os.Unsetenv("SFTPGO_HTTP__CERTIFICATES__8__CERT")
-		os.Unsetenv("SFTPGO_HTTP__CERTIFICATES__9__CERT")
-		os.Unsetenv("SFTPGO_HTTP__CERTIFICATES__9__KEY")
-	})
-
 	err = config.LoadConfig(configDir, confName)
 	require.NoError(t, err)
 	require.Len(t, config.GetHTTPConfig().Certificates, 2)
@@ -1400,6 +1202,17 @@ func TestHTTPClientCertificatesFromEnv(t *testing.T) {
 	assert.NoError(t, err)
 
 	config.Init()
+
+	err = config.LoadConfig(configDir, "")
+	require.NoError(t, err)
+	// env var are unset after the previous config load
+	require.Len(t, config.GetHTTPConfig().Certificates, 0)
+
+	os.Setenv("SFTPGO_HTTP__CERTIFICATES__0__CERT", "cert0")
+	os.Setenv("SFTPGO_HTTP__CERTIFICATES__0__KEY", "key0")
+	os.Setenv("SFTPGO_HTTP__CERTIFICATES__8__CERT", "cert8")
+	os.Setenv("SFTPGO_HTTP__CERTIFICATES__9__CERT", "cert9")
+	os.Setenv("SFTPGO_HTTP__CERTIFICATES__9__KEY", "key9")
 
 	err = config.LoadConfig(configDir, "")
 	require.NoError(t, err)
@@ -1444,16 +1257,6 @@ func TestHTTPClientHeadersFromEnv(t *testing.T) {
 	os.Setenv("SFTPGO_HTTP__HEADERS__9__VALUE", "value9")
 	os.Setenv("SFTPGO_HTTP__HEADERS__9__URL", "url9")
 
-	t.Cleanup(func() {
-		os.Unsetenv("SFTPGO_HTTP__HEADERS__0__KEY")
-		os.Unsetenv("SFTPGO_HTTP__HEADERS__0__VALUE")
-		os.Unsetenv("SFTPGO_HTTP__HEADERS__0__URL")
-		os.Unsetenv("SFTPGO_HTTP__HEADERS__8__KEY")
-		os.Unsetenv("SFTPGO_HTTP__HEADERS__9__KEY")
-		os.Unsetenv("SFTPGO_HTTP__HEADERS__9__VALUE")
-		os.Unsetenv("SFTPGO_HTTP__HEADERS__9__URL")
-	})
-
 	err = config.LoadConfig(configDir, confName)
 	require.NoError(t, err)
 	require.Len(t, config.GetHTTPConfig().Headers, 2)
@@ -1466,6 +1269,14 @@ func TestHTTPClientHeadersFromEnv(t *testing.T) {
 
 	err = os.Remove(configFilePath)
 	assert.NoError(t, err)
+
+	os.Setenv("SFTPGO_HTTP__HEADERS__0__KEY", "key0")
+	os.Setenv("SFTPGO_HTTP__HEADERS__0__VALUE", "value0")
+	os.Setenv("SFTPGO_HTTP__HEADERS__0__URL", "url0")
+	os.Setenv("SFTPGO_HTTP__HEADERS__8__KEY", "key8")
+	os.Setenv("SFTPGO_HTTP__HEADERS__9__KEY", "key9")
+	os.Setenv("SFTPGO_HTTP__HEADERS__9__VALUE", "value9")
+	os.Setenv("SFTPGO_HTTP__HEADERS__9__URL", "url9")
 
 	config.Init()
 
@@ -1494,19 +1305,7 @@ func TestConfigFromEnv(t *testing.T) {
 	os.Setenv("SFTPGO_TELEMETRY__TLS_CIPHER_SUITES", "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA")
 	os.Setenv("SFTPGO_HTTPD__SETUP__INSTALLATION_CODE", "123")
 	os.Setenv("SFTPGO_ACME__HTTP01_CHALLENGE__PORT", "5002")
-	t.Cleanup(func() {
-		os.Unsetenv("SFTPGO_SFTPD__BINDINGS__0__ADDRESS")
-		os.Unsetenv("SFTPGO_WEBDAVD__BINDINGS__0__PORT")
-		os.Unsetenv("SFTPGO_DATA_PROVIDER__PASSWORD_HASHING__ARGON2_OPTIONS__ITERATIONS")
-		os.Unsetenv("SFTPGO_DATA_PROVIDER__POOL_SIZE")
-		os.Unsetenv("SFTPGO_DATA_PROVIDER__IS_SHARED")
-		os.Unsetenv("SFTPGO_DATA_PROVIDER__ACTIONS__EXECUTE_ON")
-		os.Unsetenv("SFTPGO_KMS__SECRETS__URL")
-		os.Unsetenv("SFTPGO_KMS__SECRETS__MASTER_KEY_PATH")
-		os.Unsetenv("SFTPGO_TELEMETRY__TLS_CIPHER_SUITES")
-		os.Unsetenv("SFTPGO_HTTPD__SETUP__INSTALLATION_CODE")
-		os.Unsetenv("SFTPGO_ACME__HTTP01_CHALLENGE_PORT")
-	})
+
 	err := config.LoadConfig(".", "invalid config")
 	assert.NoError(t, err)
 	sftpdConfig := config.GetSFTPDConfig()

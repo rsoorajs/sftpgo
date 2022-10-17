@@ -162,6 +162,7 @@ var (
 		Issuer: "SFTPGo",
 		Algo:   mfa.TOTPAlgoSHA1,
 	}
+	envVarsToKeep = []string{"SFTPGO_DEFAULT_ADMIN_USERNAME", "SFTPGO_DEFAULT_ADMIN_PASSWORD"}
 )
 
 type globalConfig struct {
@@ -699,13 +700,14 @@ func checkOverrideDefaultSettings() {
 // $HOME/.config/sftpgo and /etc/sftpgo too.
 // configFile is an absolute or relative path (to the config dir) to the configuration file.
 func LoadConfig(configDir, configFile string) error {
-	var err error
+	defer unsetEnvVars()
+
 	readEnvFiles(configDir)
 	viper.AddConfigPath(configDir)
 	setViperAdditionalConfigPaths()
 	viper.AddConfigPath(".")
 	setConfigFile(configDir, configFile)
-	if err = viper.ReadInConfig(); err != nil {
+	if err := viper.ReadInConfig(); err != nil {
 		// if the user specify a configuration file we get os.ErrNotExist.
 		// viper.ConfigFileNotFoundError is returned if viper is unable
 		// to find sftpgo.{json,yaml, etc..} in any of the search paths
@@ -718,8 +720,7 @@ func LoadConfig(configDir, configFile string) error {
 		}
 	}
 	checkOverrideDefaultSettings()
-	err = viper.Unmarshal(&globalConf)
-	if err != nil {
+	if err := viper.Unmarshal(&globalConf); err != nil {
 		logger.Warn(logSender, "", "error parsing configuration file: %v", err)
 		logger.WarnToConsole("error parsing configuration file: %v", err)
 		return err
@@ -729,6 +730,19 @@ func LoadConfig(configDir, configFile string) error {
 	resetInvalidConfigs()
 	logger.Debug(logSender, "", "config file used: '%#v', config loaded: %+v", viper.ConfigFileUsed(), getRedactedGlobalConf())
 	return nil
+}
+
+func unsetEnvVars() {
+	for _, v := range os.Environ() {
+		if strings.HasPrefix(v, "SFTPGO_") {
+			pair := strings.SplitN(v, "=", 2)
+			val := strings.TrimSpace(pair[0])
+			if !util.Contains(envVarsToKeep, val) {
+				err := os.Unsetenv(val)
+				logger.Debug(logSender, "", "unset env var %s, err: %v", pair[0], err)
+			}
+		}
+	}
 }
 
 func isUploadModeValid() bool {

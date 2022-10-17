@@ -84,7 +84,30 @@ var (
 	backupsPath       string
 	testFileContent   = []byte("test data")
 	lastReceivedEmail receivedEmail
+	additionalEnvVars map[string]string
 )
+
+func getAdditionalEnvVars() {
+	additionalEnvVars = map[string]string{}
+	values := []string{"SFTPGO_DATA_PROVIDER__DRIVER", "SFTPGO_DATA_PROVIDER__NAME",
+		"SFTPGO_DATA_PROVIDER__HOST", "SFTPGO_DATA_PROVIDER__PORT", "SFTPGO_DATA_PROVIDER__USERNAME",
+		"SFTPGO_DATA_PROVIDER__PASSWORD"}
+	for _, v := range values {
+		if val, ok := os.LookupEnv(v); ok {
+			additionalEnvVars[v] = val
+		}
+	}
+}
+
+func setEnvVars() {
+	os.Setenv("SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "1")
+	os.Setenv("SFTPGO_COMMON__ALLOW_SELF_CONNECTIONS", "1")
+	os.Setenv("SFTPGO_DEFAULT_ADMIN_USERNAME", "admin")
+	os.Setenv("SFTPGO_DEFAULT_ADMIN_PASSWORD", "password")
+	for k, v := range additionalEnvVars {
+		os.Setenv(k, v)
+	}
+}
 
 func TestMain(m *testing.M) {
 	homeBasePath = os.TempDir()
@@ -92,10 +115,8 @@ func TestMain(m *testing.M) {
 	backupsPath = filepath.Join(os.TempDir(), "backups")
 	logger.InitLogger(logFilePath, 5, 1, 28, false, false, zerolog.DebugLevel)
 
-	os.Setenv("SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "1")
-	os.Setenv("SFTPGO_COMMON__ALLOW_SELF_CONNECTIONS", "1")
-	os.Setenv("SFTPGO_DEFAULT_ADMIN_USERNAME", "admin")
-	os.Setenv("SFTPGO_DEFAULT_ADMIN_PASSWORD", "password")
+	getAdditionalEnvVars()
+	setEnvVars()
 	err := config.LoadConfig(configDir, "")
 	if err != nil {
 		logger.ErrorToConsole("error loading configuration: %v", err)
@@ -2910,6 +2931,7 @@ func TestUserPasswordHashing(t *testing.T) {
 
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -2957,6 +2979,7 @@ func TestUserPasswordHashing(t *testing.T) {
 
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -3002,6 +3025,7 @@ func TestDbDefenderErrors(t *testing.T) {
 	_, err = common.GetDefenderScore(testIP)
 	assert.Error(t, err)
 
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -3019,6 +3043,7 @@ func TestDbDefenderErrors(t *testing.T) {
 func TestDelayedQuotaUpdater(t *testing.T) {
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -3109,6 +3134,7 @@ func TestDelayedQuotaUpdater(t *testing.T) {
 
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -5379,6 +5405,7 @@ func TestSyncUploadAction(t *testing.T) {
 func TestQuotaTrackDisabled(t *testing.T) {
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -5404,6 +5431,7 @@ func TestQuotaTrackDisabled(t *testing.T) {
 
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -5444,6 +5472,7 @@ func TestGetQuotaError(t *testing.T) {
 		err = client.Rename(testFileName, path.Join(vdirPath, testFileName))
 		assert.Error(t, err)
 
+		setEnvVars()
 		err = config.LoadConfig(configDir, "")
 		assert.NoError(t, err)
 		providerConf := config.GetProviderConf()

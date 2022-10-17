@@ -859,6 +859,10 @@ func Initialize(cnf Config, basePath string, checkAdmins bool) error {
 }
 
 func checkDatabase(checkAdmins bool) error {
+	defer func() {
+		os.Unsetenv("SFTPGO_DEFAULT_ADMIN_USERNAME")
+		os.Unsetenv("SFTPGO_DEFAULT_ADMIN_PASSWORD")
+	}()
 	if config.UpdateMode == 0 {
 		err := provider.initializeDatabase()
 		if err != nil && err != ErrNoInitRequired {

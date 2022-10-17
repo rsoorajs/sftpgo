@@ -249,19 +249,46 @@ XMf5HU3ThYqYn3bYypZZ8nQ7BXVh4LqGNqG29wR4v6l+dLO6odXnLzfApGD9e+d4
 )
 
 var (
-	configDir       = filepath.Join(".", "..", "..")
-	allPerms        = []string{dataprovider.PermAny}
-	homeBasePath    string
-	hookCmdPath     string
-	extAuthPath     string
-	preLoginPath    string
-	postConnectPath string
-	preDownloadPath string
-	preUploadPath   string
-	logFilePath     string
-	caCrtPath       string
-	caCRLPath       string
+	configDir         = filepath.Join(".", "..", "..")
+	allPerms          = []string{dataprovider.PermAny}
+	homeBasePath      string
+	hookCmdPath       string
+	extAuthPath       string
+	preLoginPath      string
+	postConnectPath   string
+	preDownloadPath   string
+	preUploadPath     string
+	logFilePath       string
+	caCrtPath         string
+	caCRLPath         string
+	additionalEnvVars map[string]string
 )
+
+func getAdditionalEnvVars() {
+	additionalEnvVars = map[string]string{}
+	values := []string{"SFTPGO_DATA_PROVIDER__DRIVER", "SFTPGO_DATA_PROVIDER__NAME",
+		"SFTPGO_DATA_PROVIDER__HOST", "SFTPGO_DATA_PROVIDER__PORT", "SFTPGO_DATA_PROVIDER__USERNAME",
+		"SFTPGO_DATA_PROVIDER__PASSWORD"}
+	for _, v := range values {
+		if val, ok := os.LookupEnv(v); ok {
+			additionalEnvVars[v] = val
+		}
+	}
+}
+
+func setEnvVars() {
+	// we run the test cases with UploadMode atomic and resume support. The non atomic code path
+	// simply does not execute some code so if it works in atomic mode will
+	// work in non atomic mode too
+	os.Setenv("SFTPGO_COMMON__UPLOAD_MODE", "2")
+	os.Setenv("SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "1")
+	os.Setenv("SFTPGO_COMMON__ALLOW_SELF_CONNECTIONS", "1")
+	os.Setenv("SFTPGO_DEFAULT_ADMIN_USERNAME", "admin")
+	os.Setenv("SFTPGO_DEFAULT_ADMIN_PASSWORD", "password")
+	for k, v := range additionalEnvVars {
+		os.Setenv(k, v)
+	}
+}
 
 func TestMain(m *testing.M) {
 	logFilePath = filepath.Join(configDir, "sftpgo_ftpd_test.log")
@@ -272,14 +299,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		logger.ErrorToConsole("error creating banner file: %v", err)
 	}
-	// we run the test cases with UploadMode atomic and resume support. The non atomic code path
-	// simply does not execute some code so if it works in atomic mode will
-	// work in non atomic mode too
-	os.Setenv("SFTPGO_COMMON__UPLOAD_MODE", "2")
-	os.Setenv("SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN", "1")
-	os.Setenv("SFTPGO_COMMON__ALLOW_SELF_CONNECTIONS", "1")
-	os.Setenv("SFTPGO_DEFAULT_ADMIN_USERNAME", "admin")
-	os.Setenv("SFTPGO_DEFAULT_ADMIN_PASSWORD", "password")
+	getAdditionalEnvVars()
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	if err != nil {
 		logger.ErrorToConsole("error loading configuration: %v", err)
@@ -1179,6 +1200,7 @@ func TestLoginExternalAuth(t *testing.T) {
 	u := getTestUser()
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -1240,6 +1262,7 @@ func TestLoginExternalAuth(t *testing.T) {
 
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -1256,6 +1279,7 @@ func TestPreLoginHook(t *testing.T) {
 	u := getTestUser()
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -1321,6 +1345,7 @@ func TestPreLoginHook(t *testing.T) {
 	assert.NoError(t, err)
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -1340,6 +1365,7 @@ func TestPreLoginHookReturningAnonymousUser(t *testing.T) {
 	u.Password = ""
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -1413,6 +1439,7 @@ func TestPreLoginHookReturningAnonymousUser(t *testing.T) {
 	assert.NoError(t, err)
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -3434,6 +3461,7 @@ func TestExternalAuthWithClientCert(t *testing.T) {
 	u.Filters.TLSUsername = sdk.TLSUsernameCN
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -3482,6 +3510,7 @@ func TestExternalAuthWithClientCert(t *testing.T) {
 
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
@@ -3501,6 +3530,7 @@ func TestPreLoginHookWithClientCert(t *testing.T) {
 	u.Filters.TLSUsername = sdk.TLSUsernameCN
 	err := dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf := config.GetProviderConf()
@@ -3560,6 +3590,7 @@ func TestPreLoginHookWithClientCert(t *testing.T) {
 	assert.NoError(t, err)
 	err = dataprovider.Close()
 	assert.NoError(t, err)
+	setEnvVars()
 	err = config.LoadConfig(configDir, "")
 	assert.NoError(t, err)
 	providerConf = config.GetProviderConf()
